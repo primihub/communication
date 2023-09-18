@@ -9,7 +9,10 @@ cc_library(
 
 cc_library(
   name = "channel_interface",
-  hdrs = ["channel_interface.h"],
+  hdrs = [
+    "channel_interface.h",
+    "status.h"
+  ],
   srcs = ["channel_interface.cc"],
   linkopts = [
     "-lpthread",
