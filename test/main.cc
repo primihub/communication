@@ -1,55 +1,100 @@
 #include <glog/logging.h>
+#include <gtest/gtest.h>
 
+#include <array>
 #include <iostream>
 #include <vector>
-#include <array>
-#include "network/mem_channel.h"
+
 #include "network/channel_interface.h"
-int main() {
-  // create channel
-  auto channel_impl = std::make_shared<primihub::link::MemoryChannel>();
-  auto channel = std::make_shared<primihub::link::Channel>(channel_impl);
-  // test send recv string
-  LOG(INFO) << "test send recv string";
+#include "network/mem_channel.h"
+
+using primihub::link::Channel;
+using primihub::link::MemoryChannel;
+using primihub::link::retcode;
+
+static std::string gen_random(uint32_t len) {
+  static const char alphanum[] = "0123456789"
+                                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                 "abcdefghijklmnopqrstuvwxyz";
+  std::string tmp_s;
+  tmp_s.reserve(len);
+
+  for (uint32_t i = 0; i < len; ++i)
+    tmp_s += alphanum[rand() % (sizeof(alphanum) - 1)];
+
+  return tmp_s;
+}
+
+TEST(channel, type_test) {
+  auto channel_impl = std::make_shared<MemoryChannel>();
+  auto channel = std::make_shared<Channel>(channel_impl, "type_test");
+
   std::string buf = "Hello World";
   channel->asyncSend(buf);
   std::string recv_buf;
   channel->asyncRecv(recv_buf).get();
-  LOG(INFO) << "recv string content: " << recv_buf;
-  // test send recv arary
-  LOG(INFO) << "test send recv arary";
+
+  EXPECT_EQ(buf, recv_buf);
+
   std::array<int64_t, 2> shape{1, 1};
-  std::string send_item;
-  for (const auto& item: shape) {
-    send_item.append(std::to_string(item)).append(" ");
-  }
-  LOG(INFO) << "origin item: " << send_item;
   channel->asyncSend(shape);
+
   std::array<int64_t, 2> recv_shape;
   auto fut = channel->asyncRecv(recv_shape);
   fut.get();
-  std::string recv_item;
-  for (const auto& item : recv_shape) {
-    recv_item.append(std::to_string(item)).append(" ");
-  }
-  LOG(INFO) << "recv array item: " << recv_item;
 
-  // test send recv vector
-  LOG(INFO) << "test send recv vector";
+  EXPECT_EQ(shape[0], recv_shape[0]);
+  EXPECT_EQ(shape[1], recv_shape[1]);
+
   std::vector<int> vec{1, 2, 3, 4};
-  std::string send_vec_item;
-  for (const auto& item: vec) {
-    send_vec_item.append(std::to_string(item)).append(" ");
-  }
-  LOG(INFO) << "origin vector item: " << send_vec_item;
   channel->asyncSend(vec);
+
   std::vector<int> recv_vec;
   recv_vec.resize(vec.size());
   channel->asyncRecv(recv_vec).get();
-  std::string recv_vec_item;
-  for (const auto& item : recv_vec) {
-    recv_vec_item.append(std::to_string(item)).append(" ");
+
+  EXPECT_EQ(vec.size(), recv_vec.size());
+  for (size_t i = 0; i < recv_vec.size(); i++)
+    EXPECT_EQ(vec[i], recv_vec[i]);
+}
+
+TEST(channel, multiple_test) {
+  std::string str1 = gen_random(1024);
+  std::string str2 = gen_random(2048);
+  std::string str3 = gen_random(4096);
+
+  auto channel_impl = std::make_shared<MemoryChannel>();
+  auto channel = std::make_shared<Channel>(channel_impl, "type_test");
+
+  auto status = channel->asyncSend(str1);
+  EXPECT_EQ(status.IsOK(), true);
+
+  status = channel->asyncSend(str1);
+  EXPECT_EQ(status.IsOK(), true);
+
+  status = channel->asyncSend(str1);
+  EXPECT_EQ(status.IsOK(), true);
+
+  std::string recv_str1;
+  std::string recv_str2;
+  std::string recv_str3;
+
+  {
+    auto fut = channel->asyncRecv(recv_str1);
+    fut.get();
   }
-  LOG(INFO) << "recv vector item: " << recv_vec_item;
-  return 0;
+
+  {
+    auto fut = channel->asyncRecv(recv_str2);
+    fut.get();
+  }
+
+  {
+    auto fut = channel->asyncRecv(recv_str3);
+    fut.get();
+  }
+
+  EXPECT_EQ(recv_str1, str1);
+  EXPECT_EQ(recv_str2, str2);
+  EXPECT_EQ(recv_str3, str3);
 }

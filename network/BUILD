@@ -3,7 +3,8 @@ cc_library(
   name = "base_channel",
   hdrs = ["base_channel.h"],
   deps = [
-    "//common:common_def"
+    "//common:common_def",
+    "@com_github_glog_glog//:glog",
   ],
 )
 
@@ -30,5 +31,6 @@ cc_library(
   srcs = ["mem_channel.cc"],
   deps = [
     ":base_channel",
+    "//common:threadsafe_queue",
   ],
 )

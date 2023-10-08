@@ -5,5 +5,6 @@ cc_binary(
   deps = [
     "//network:mem_channel",
     "//network:channel_interface",
+    "@com_google_googletest//:gtest_main",
   ],
 )
