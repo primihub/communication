@@ -19,9 +19,12 @@
 #include "common/threadsafe_queue.h"
 #include "network/base_channel.h"
 
+#include <map>
+#include <mutex>
 #include <string_view>
 
 namespace primihub::link {
+using ThreadSafeQueuePtr = std::shared_ptr<ThreadSafeQueue<std::string>>;
 class MemoryChannel : public ChannelBase {
 public:
   MemoryChannel() = default;
@@ -37,8 +40,8 @@ public:
   void cancel() override;
 
 private:
-  ThreadSafeQueue<std::string> storage;
-  std::string key_;
+  ThreadSafeQueuePtr storage;
+  std::string key_{"default"};
 };
 } // namespace primihub::link
 

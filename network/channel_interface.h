@@ -25,6 +25,8 @@
 #include <future>
 #include <iostream>
 #include <thread>
+#include <map>
+#include <mutex>
 
 namespace primihub::link {
 // Channel is the standard interface use to send data over the network.
@@ -58,10 +60,11 @@ public:
   std::shared_ptr<Channel> fork(void) {
     num_fork_++;
     std::string new_key = key_ + "_fork_" + std::to_string(num_fork_);
+
     std::shared_ptr<ChannelBase> base = channel_impl_->ForkImpl(new_key);
     std::shared_ptr<Channel> new_channel =
         std::make_shared<Channel>(base, new_key);
-    new_channel->num_fork_ = num_fork_;
+
     return new_channel;
   }
 

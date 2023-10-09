@@ -21,12 +21,43 @@
 #include <string_view>
 
 namespace primihub::link {
-MemoryChannel::MemoryChannel(const std::string &key) { this->key_ = key; }
+namespace {
+class QueueManager {
+public:
+  QueueManager() = default;
+  ThreadSafeQueuePtr getOrCreate(const std::string &key) {
+    std::lock_guard<std::mutex> lock(map_mu_);
+    auto iter = queue_map_.find(key);
+    if (iter != queue_map_.end())
+      return iter->second;
 
-void MemoryChannel::SetKey(const std::string &key) { this->key_ = key; }
+    std::shared_ptr<ThreadSafeQueue<std::string>> queue =
+        std::make_shared<ThreadSafeQueue<std::string>>();
+    queue_map_.insert(std::make_pair(key, queue));
+
+    return queue;
+  }
+
+private:
+  std::map<std::string, ThreadSafeQueuePtr> queue_map_;
+  std::mutex map_mu_;
+};
+
+QueueManager manager;
+} // namespace
+
+MemoryChannel::MemoryChannel(const std::string &key) { 
+  this->key_ = key; 
+  storage = manager.getOrCreate(this->key_);
+}
+
+void MemoryChannel::SetKey(const std::string &key) {
+  this->key_ = key;
+  storage = manager.getOrCreate(this->key_);
+}
 
 retcode MemoryChannel::SendImpl(std::string_view send_buff_sv) {
-  storage.push(std::string(send_buff_sv.data(), send_buff_sv.size()));
+  storage->push(std::string(send_buff_sv.data(), send_buff_sv.size()));
 
   if (VLOG_IS_ON(8)) {
     std::string send_data;
@@ -54,7 +85,7 @@ retcode MemoryChannel::SendImpl(const char *buff, size_t size) {
 
 retcode MemoryChannel::RecvImpl(std::string *recv_buf) {
   std::string data_buf;
-  storage.wait_and_pop(data_buf);
+  storage->wait_and_pop(data_buf);
   *recv_buf = std::move(data_buf);
 
   if (VLOG_IS_ON(8)) {
@@ -73,7 +104,7 @@ retcode MemoryChannel::RecvImpl(std::string *recv_buf) {
 
 retcode MemoryChannel::RecvImpl(char *recv_buf, size_t recv_size) {
   std::string tmp_recv_buf;
-  storage.wait_and_pop(tmp_recv_buf);
+  storage->wait_and_pop(tmp_recv_buf);
   if (tmp_recv_buf.size() != recv_size) {
     LOG(ERROR) << "data length does not match: "
                << " "
