@@ -12,13 +12,14 @@ using primihub::link::Channel;
 using primihub::link::MemoryChannel;
 using primihub::link::retcode;
 
-static std::string gen_random(uint32_t len) {
+static std::string gen_random(uint32_t len, uint32_t seed) {
   static const char alphanum[] = "0123456789"
                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                  "abcdefghijklmnopqrstuvwxyz";
   std::string tmp_s;
   tmp_s.reserve(len);
-
+  
+  srand(seed);
   for (uint32_t i = 0; i < len; ++i)
     tmp_s += alphanum[rand() % (sizeof(alphanum) - 1)];
 
@@ -59,9 +60,9 @@ TEST(channel, type_test) {
 }
 
 TEST(channel, multiple_test) {
-  std::string str1 = gen_random(1024);
-  std::string str2 = gen_random(2048);
-  std::string str3 = gen_random(4096);
+  std::string str1 = gen_random(1024, 1);
+  std::string str2 = gen_random(2048, 2);
+  std::string str3 = gen_random(4096, 3);
 
   auto channel_impl = std::make_shared<MemoryChannel>();
   auto channel = std::make_shared<Channel>(channel_impl, "type_test");
@@ -69,10 +70,10 @@ TEST(channel, multiple_test) {
   auto status = channel->asyncSend(str1);
   EXPECT_EQ(status.IsOK(), true);
 
-  status = channel->asyncSend(str1);
+  status = channel->asyncSend(str2);
   EXPECT_EQ(status.IsOK(), true);
 
-  status = channel->asyncSend(str1);
+  status = channel->asyncSend(str3);
   EXPECT_EQ(status.IsOK(), true);
 
   std::string recv_str1;
