@@ -246,6 +246,7 @@ public:
   template <typename T>
   typename std::enable_if<std::is_pod<T>::value, std::future<Status>>::type
   asyncRecv(T &dest) {
+    LOG(INFO) << "Type of T is " << typeid(T).name() << ".";
     return asyncRecv(&dest, 1);
   }
 
@@ -369,8 +370,11 @@ typename std::enable_if<
     std::future<Status>>::type
 Channel::asyncRecv(Container &c) {
   auto recv_func = [&](Container &c) -> Status {
-    this->channel_impl_->RecvImpl(BuffData(c), BuffSize(c));
-    return Status::OK();
+    retcode ret = this->channel_impl_->RecvImpl(BuffData(c), BuffSize(c));
+    if (ret == retcode::SUCCESS)
+      return Status::OK();
+    else
+      return Status::NetworkError();
   };
   return std::async(std::launch::async, recv_func, std::ref(c));
 }
@@ -499,9 +503,14 @@ typename std::enable_if<std::is_pod<T>::value, std::future<Status>>::type
 Channel::asyncRecv(T *buffT, uint64_t sizeT) {
   char *buff = reinterpret_cast<char *>(buffT);
   auto size = sizeT * sizeof(T);
+  LOG(INFO) << "Sizeof T " << sizeof(T) << ", elem num " << sizeT;;
   auto recv_func = [&](char *buf, uint64_t length) -> Status {
-    this->channel_impl_->RecvImpl(buf, length);
-    return Status::OK();
+    LOG(INFO) << "Recv length " << length;
+    retcode ret = this->channel_impl_->RecvImpl(buf, length);
+    if (ret == retcode::SUCCESS)
+      return Status::OK();
+    else 
+      return Status::NetworkError();
   };
   return std::async(std::launch::async, recv_func, buff, size);
 }

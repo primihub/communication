@@ -66,8 +66,8 @@ retcode MemoryChannel::SendImpl(std::string_view send_buff_sv) {
     }
     LOG(INFO) << "MemoryChannel::SendImpl "
               << "send_key: " << key_ << " "
-              << "data size: " << send_buff_sv.size() << " "
-              << "send data: [" << send_data << "]";
+              << "data size: " << send_buff_sv.size();
+              // << "send data: [" << send_data << "]";
   }
 
   return retcode::SUCCESS;
@@ -95,8 +95,8 @@ retcode MemoryChannel::RecvImpl(std::string *recv_buf) {
     }
 
     LOG(INFO) << "MemoryChannel::RecvImpl "
-              << "recv_key: " << key_ << " data size: " << recv_buf->size()
-              << " recv data: " << recv_data;
+              << "recv_key: " << key_ << " data size: " << recv_buf->size();
+              // << " recv data: " << recv_data;
   }
 
   return retcode::SUCCESS;
@@ -121,10 +121,10 @@ retcode MemoryChannel::RecvImpl(char *recv_buf, size_t recv_size) {
       recv_data.append(std::to_string(static_cast<int>(ch))).append(" ");
     }
 
-    LOG(ERROR) << "MemoryChannel::RecvImpl "
+    LOG(INFO) << "MemoryChannel::RecvImpl "
                << "recv_key: " << key_ << " "
-               << "data size: " << recv_size << " "
-               << "recv data: [" << recv_data << "] ";
+               << "data size: " << recv_size;
+               // << "recv data: [" << recv_data << "] ";
   }
 
   return retcode::SUCCESS;
