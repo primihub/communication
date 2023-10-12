@@ -246,7 +246,6 @@ public:
   template <typename T>
   typename std::enable_if<std::is_pod<T>::value, std::future<Status>>::type
   asyncRecv(T &dest) {
-    LOG(INFO) << "Type of T is " << typeid(T).name() << ".";
     return asyncRecv(&dest, 1);
   }
 
@@ -503,9 +502,7 @@ typename std::enable_if<std::is_pod<T>::value, std::future<Status>>::type
 Channel::asyncRecv(T *buffT, uint64_t sizeT) {
   char *buff = reinterpret_cast<char *>(buffT);
   auto size = sizeT * sizeof(T);
-  LOG(INFO) << "Sizeof T " << sizeof(T) << ", elem num " << sizeT;;
   auto recv_func = [&](char *buf, uint64_t length) -> Status {
-    LOG(INFO) << "Recv length " << length;
     retcode ret = this->channel_impl_->RecvImpl(buf, length);
     if (ret == retcode::SUCCESS)
       return Status::OK();

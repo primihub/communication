@@ -13,6 +13,8 @@ using primihub::link::MemoryChannel;
 using primihub::link::retcode;
 using primihub::link::Status;
 
+using ChannelRole = MemoryChannel::ChannelRole;
+
 static std::string gen_random(uint32_t len, uint32_t seed) {
   static const char alphanum[] = "0123456789"
                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -28,32 +30,35 @@ static std::string gen_random(uint32_t len, uint32_t seed) {
 }
 
 TEST(channel, type_test) {
-  auto channel_impl = std::make_shared<MemoryChannel>();
-  auto channel = std::make_shared<Channel>(channel_impl, "type_test");
+  auto channel_impl1 = std::make_shared<MemoryChannel>(ChannelRole::CLIENT);
+  auto channel1 = std::make_shared<Channel>(channel_impl1, "type_test");
+
+  auto channel_impl2 = std::make_shared<MemoryChannel>(ChannelRole::SERVER);
+  auto channel2 = std::make_shared<Channel>(channel_impl2, "type_test");
 
   std::string buf = "Hello World";
-  channel->asyncSend(buf);
+  channel1->asyncSend(buf);
   std::string recv_buf;
-  channel->asyncRecv(recv_buf).get();
+  channel2->asyncRecv(recv_buf).get();
 
   EXPECT_EQ(buf, recv_buf);
 
   std::array<int64_t, 2> shape{1, 1};
-  channel->asyncSend(shape);
+  channel1->asyncSend(shape);
 
   std::array<int64_t, 2> recv_shape;
-  auto fut = channel->asyncRecv(recv_shape);
+  auto fut = channel2->asyncRecv(recv_shape);
   fut.get();
 
   EXPECT_EQ(shape[0], recv_shape[0]);
   EXPECT_EQ(shape[1], recv_shape[1]);
 
   std::vector<int> vec{1, 2, 3, 4};
-  channel->asyncSend(vec);
+  channel1->asyncSend(vec);
 
   std::vector<int> recv_vec;
   recv_vec.resize(vec.size());
-  channel->asyncRecv(recv_vec).get();
+  channel2->asyncRecv(recv_vec).get();
 
   EXPECT_EQ(vec.size(), recv_vec.size());
   for (size_t i = 0; i < recv_vec.size(); i++)
@@ -65,16 +70,19 @@ TEST(channel, multiple_test) {
   std::string str2 = gen_random(2048, 2);
   std::string str3 = gen_random(4096, 3);
 
-  auto channel_impl = std::make_shared<MemoryChannel>();
-  auto channel = std::make_shared<Channel>(channel_impl, "type_test");
+  auto channel_impl1 = std::make_shared<MemoryChannel>(ChannelRole::CLIENT);
+  auto channel1 = std::make_shared<Channel>(channel_impl1, "type_test");
 
-  auto status = channel->asyncSend(str1);
+  auto channel_impl2 = std::make_shared<MemoryChannel>(ChannelRole::SERVER);
+  auto channel2 = std::make_shared<Channel>(channel_impl2, "type_test");
+
+  auto status = channel1->asyncSend(str1);
   EXPECT_EQ(status.IsOK(), true);
 
-  status = channel->asyncSend(str2);
+  status = channel1->asyncSend(str2);
   EXPECT_EQ(status.IsOK(), true);
 
-  status = channel->asyncSend(str3);
+  status = channel1->asyncSend(str3);
   EXPECT_EQ(status.IsOK(), true);
 
   std::string recv_str1;
@@ -82,17 +90,49 @@ TEST(channel, multiple_test) {
   std::string recv_str3;
 
   {
-    auto fut = channel->asyncRecv(recv_str1);
+    auto fut = channel2->asyncRecv(recv_str1);
     fut.get();
   }
 
   {
-    auto fut = channel->asyncRecv(recv_str2);
+    auto fut = channel2->asyncRecv(recv_str2);
     fut.get();
   }
 
   {
-    auto fut = channel->asyncRecv(recv_str3);
+    auto fut = channel2->asyncRecv(recv_str3);
+    fut.get();
+  }
+
+  EXPECT_EQ(recv_str1, str1);
+  EXPECT_EQ(recv_str2, str2);
+  EXPECT_EQ(recv_str3, str3);
+
+  status = channel2->asyncSend(str1);
+  EXPECT_EQ(status.IsOK(), true);
+
+  status = channel2->asyncSend(str2);
+  EXPECT_EQ(status.IsOK(), true);
+  
+  status = channel2->asyncSend(str3);
+  EXPECT_EQ(status.IsOK(), true);
+  
+  recv_str1.clear();
+  recv_str2.clear();
+  recv_str3.clear();
+
+  {
+    auto fut = channel1->asyncRecv(recv_str1);
+    fut.get();
+  }
+
+  {
+    auto fut = channel1->asyncRecv(recv_str2);
+    fut.get();
+  }
+
+  {
+    auto fut = channel1->asyncRecv(recv_str3);
     fut.get();
   }
 
@@ -106,12 +146,17 @@ TEST(channel, fork_test) {
   std::vector<std::shared_ptr<Channel>> client_fork_channels;
   std::vector<std::shared_ptr<Channel>> server_fork_channels;
 
-  auto channel_impl = std::make_shared<MemoryChannel>();
-  auto channel = std::make_shared<Channel>(channel_impl, "fork_test");
+  auto channel_impl1 = std::make_shared<MemoryChannel>(ChannelRole::CLIENT);
+  auto channel1 = std::make_shared<Channel>(channel_impl1, "fork_test");
+
+  auto channel_impl2 = std::make_shared<MemoryChannel>(ChannelRole::SERVER);
+  auto channel2 = std::make_shared<Channel>(channel_impl2, "fork_test");
 
   for (uint16_t i = 0; i < fork_num; i++) {
-    auto new_channel = channel->fork();
+    auto new_channel = channel1->fork();
     client_fork_channels.push_back(new_channel);
+    
+    new_channel = channel2->fork(); 
     server_fork_channels.push_back(new_channel);
   }
 

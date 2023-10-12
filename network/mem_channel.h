@@ -27,8 +27,13 @@ namespace primihub::link {
 using ThreadSafeQueuePtr = std::shared_ptr<ThreadSafeQueue<std::string>>;
 class MemoryChannel : public ChannelBase {
 public:
-  MemoryChannel() = default;
-  MemoryChannel(const std::string &key);
+  enum ChannelRole {
+    SERVER,
+    CLIENT 
+  };
+
+  MemoryChannel(ChannelRole role);
+  MemoryChannel(const std::string &key, ChannelRole role);
   retcode SendImpl(const std::string &send_buf) override;
   retcode SendImpl(std::string_view send_buff_sv) override;
   retcode SendImpl(const char *buff, size_t size) override;
@@ -40,8 +45,10 @@ public:
   void cancel() override;
 
 private:
-  ThreadSafeQueuePtr storage;
+  ThreadSafeQueuePtr storage_c2s_;
+  ThreadSafeQueuePtr storage_s2c_;
   std::string key_{"default"};
+  ChannelRole role_;
 };
 } // namespace primihub::link
 
